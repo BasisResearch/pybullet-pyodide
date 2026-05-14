@@ -26,7 +26,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
 
       - name: Install pyodide toolchain
-        run: uv tool install pyodide-cli --with pyodide-build${{ env.PYODIDE_BUILD_VERSION }} --with pip
+        run: uv tool install pyodide-cli --with 'pyodide-build${{ env.PYODIDE_BUILD_VERSION }}' --with pip
 
       # The xbuildenv pulls ~300 MB of Emscripten binaries. Cache it
       # keyed on the runtime version so re-runs and PRs reuse it.
