@@ -28,7 +28,8 @@ jobs:
           enable-cache: true
 
       - name: Install pyodide toolchain
-        run: uv tool install pyodide-cli --with 'pyodide-build==${{ matrix.pyodide-build }}'
+        # --with pip is necessary for strange reasons
+        run: uv tool install pyodide-cli --with 'pyodide-build==${{ matrix.pyodide-build }}' --with pip
 
       - name: Install xbuildenv
         run: |
