@@ -1,0 +1,94 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+
+env:
+  PYODIDE_RUNTIME_VERSION: "0.29.4"
+  PYODIDE_BUILD_VERSION: ">=0.34,<0.35"
+
+jobs:
+  build_wheel:
+    name: Build pybullet wheel for Pyodide
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # cibuildwheel's pyodide platform only handles pyproject.toml-driven
+      # PEP 517 builds; it doesn't understand meta.yaml / source.extras /
+      # source.patches, which is the layer doing all the work here. Drive
+      # pyodide-build directly instead — same flow as a local build.
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install pyodide toolchain
+        run: uv tool install pyodide-cli --with pyodide-build${{ env.PYODIDE_BUILD_VERSION }} --with pip
+
+      # The xbuildenv pulls ~300 MB of Emscripten binaries. Cache it
+      # keyed on the runtime version so re-runs and PRs reuse it.
+      - name: Cache pyodide xbuildenv
+        id: xbuildenv-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/.pyodide-xbuildenv-*/
+          key: xbuildenv-${{ runner.os }}-${{ env.PYODIDE_RUNTIME_VERSION }}
+
+      - name: Install xbuildenv
+        if: steps.xbuildenv-cache.outputs.cache-hit != 'true'
+        run: pyodide xbuildenv install ${{ env.PYODIDE_RUNTIME_VERSION }}
+
+      - name: Build recipe
+        run: |
+          source "$(pyodide config get emsdk_dir)/emsdk_env.sh"
+          pyodide build-recipes-no-deps pybullet --recipe-dir packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pybullet-wheel
+          path: packages/pybullet/dist/*.whl
+          if-no-files-found: error
+
+  smoke_test:
+    name: Load wheel in Pyodide and run a sim
+    needs: build_wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: pybullet-wheel
+          path: packages/pybullet/dist
+
+      - name: Run smoke test
+        working-directory: test
+        run: |
+          npm install
+          node smoke.mjs
+
+  release:
+    name: Attach wheel to GitHub release
+    if: github.ref_type == 'tag'
+    needs: [build_wheel, smoke_test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pybullet-wheel
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
