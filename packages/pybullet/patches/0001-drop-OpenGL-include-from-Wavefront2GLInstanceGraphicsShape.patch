@@ -1,0 +1,25 @@
+Subject: [PATCH] Drop SimpleOpenGL3App include from Wavefront2GLInstanceGraphicsShape
+
+Wavefront2GLInstanceGraphicsShape.cpp is pure data conversion (Wavefront
+OBJ to a vertex/index struct) — it has no OpenGL dependency of its own.
+But it #include's SimpleOpenGL3App.h, which transitively pulls in real GL
+headers that Emscripten doesn't have. The only thing actually used from
+that chain is b3Max, which lives in Bullet3Common/b3MinMax.h, so swap the
+include for the narrow header.
+---
+ examples/Importers/ImportObjDemo/Wavefront2GLInstanceGraphicsShape.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/examples/Importers/ImportObjDemo/Wavefront2GLInstanceGraphicsShape.cpp b/examples/Importers/ImportObjDemo/Wavefront2GLInstanceGraphicsShape.cpp
+--- a/examples/Importers/ImportObjDemo/Wavefront2GLInstanceGraphicsShape.cpp
++++ b/examples/Importers/ImportObjDemo/Wavefront2GLInstanceGraphicsShape.cpp
+@@ -4,7 +4,8 @@
+ #include "../../OpenGLWindow/GLInstanceGraphicsShape.h"
+ //#include "btBulletDynamicsCommon.h"
+ #include "LinearMath/btVector3.h"
+-#include "../../OpenGLWindow/SimpleOpenGL3App.h"
++// SimpleOpenGL3App include removed (unused; pulls in GL).
++#include "Bullet3Common/b3MinMax.h"
+ #include "Wavefront2GLInstanceGraphicsShape.h"
+ #include "../../OpenGLWindow/GLInstancingRenderer.h"
+ #include "../../OpenGLWindow/GLInstanceGraphicsShape.h"

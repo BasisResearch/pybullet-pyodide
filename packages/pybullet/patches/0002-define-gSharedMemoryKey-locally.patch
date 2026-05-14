@@ -1,0 +1,29 @@
+Subject: [PATCH] Define gSharedMemoryKey inside the in-process API TU
+
+Upstream defines `gSharedMemoryKey` in OpenGLExampleBrowser.cpp (the
+desktop GUI entry point). We strip that file from the build because it
+pulls in real GL — but SharedMemoryInProcessPhysicsC_API.cpp still does
+`extern int gSharedMemoryKey;` and writes to it from a handful of
+`b3CreateInProcessPhysicsServer*` paths that the Python binding reaches
+through `pybullet.connect(...)`. Result: an undefined import lands in
+the .so's export table and Pyodide's dynamic loader rejects it at
+import time with `bad export type for 'gSharedMemoryKey': undefined`.
+
+Promote the extern to a definition in the same TU that uses it. The
+default `-1` matches what the upstream definition used.
+---
+ examples/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/examples/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp b/examples/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
+--- a/examples/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
++++ b/examples/SharedMemory/SharedMemoryInProcessPhysicsC_API.cpp
+@@ -271,7 +271,7 @@
+ 	return (b3PhysicsClientHandle)cl;
+ }
+
+-extern int gSharedMemoryKey;
++int gSharedMemoryKey = -1;
+
+ B3_SHARED_API b3PhysicsClientHandle b3CreateInProcessPhysicsServerFromExistingExampleBrowserAndConnect3(void* guiHelperPtr, int sharedMemoryKey)
+ {

@@ -1,0 +1,17 @@
+.venv/
+dist/
+logs/
+
+# Legacy build artefacts from the pre-recipe imperative workflow —
+# pyodide-build now fetches the source tarball on demand.
+src/
+out/
+
+# pyodide-build's intermediate build tree and per-package outputs.
+packages/*/build/
+packages/*/dist/
+packages/*/build.log
+packages/*/.pyodide-build-meta.json
+
+test/node_modules/
+test/package-lock.json

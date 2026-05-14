@@ -1,0 +1,60 @@
+package:
+  name: pybullet
+  version: 3.2.7
+  top-level:
+    - pybullet
+    - pybullet_data
+    - pybullet_utils
+
+source:
+  url: https://files.pythonhosted.org/packages/de/95/b9a98cd4ed948d4f25a7d0b13cb0c1f87e58dc6d113be9e18940641eb25f/pybullet-3.2.7.tar.gz
+  sha256: 042879db8d101ac7590dee475fc6aded508b85fe1273fdbbfde1d88bd200e14f
+
+  # Upstream's setup.py / CMakeLists build OpenGL examples, the
+  # ExampleBrowser, networking, etc. — none of which apply to Pyodide.
+  # We overlay a curated CMakeLists.txt + scikit-build-core pyproject
+  # that compiles only the headless physics surface (core dynamics,
+  # soft body, URDF/MJCF/Collada parsers, BussIK, TinyRenderer for
+  # getCameraImage). See extras/CMakeLists.txt for the source list.
+  extras:
+    - [extras/CMakeLists.txt, CMakeLists.txt]
+    - [extras/pyproject.toml, pyproject.toml]
+
+  patches:
+    - patches/0001-drop-OpenGL-include-from-Wavefront2GLInstanceGraphicsShape.patch
+    - patches/0002-define-gSharedMemoryKey-locally.patch
+
+build:
+  # Only PyInit_pybullet needs to leave the .so. Without this, every
+  # extern symbol (e.g. gSharedMemoryKey, which is defined in the
+  # ExampleBrowser file we strip out) ends up in the dynamic export
+  # table and Pyodide's dyld rejects the wheel at import time with
+  # "bad export type for ...: undefined".
+  exports: pyinit
+
+  # Upstream README.md is large and would otherwise be embedded as
+  # long_description metadata. We don't need it in the wheel.
+  script: |
+    if [ -f README.md ]; then
+      printf "pybullet for Pyodide (headless)\n" > README.md
+    fi
+
+requirements:
+  # numpy provides Python3::NumPy via find_package at build time and is
+  # used by the binding's array-returning helpers at runtime.
+  host:
+    - numpy
+  run:
+    - numpy
+
+test:
+  imports:
+    - pybullet
+    - pybullet_data
+    - pybullet_utils
+
+about:
+  home: https://pybullet.org
+  PyPI: https://pypi.org/project/pybullet
+  summary: Headless Bullet physics + URDF for the browser (Pyodide build of pybullet).
+  license: Zlib
