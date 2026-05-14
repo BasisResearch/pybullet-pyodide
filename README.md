@@ -1,4 +1,4 @@
-# pyodide-bullet
+# pybullet-pyodide
 
 A [Pyodide](https://pyodide.org/) recipe for [pybullet](https://pybullet.org/)
 — it cross-compiles upstream `pybullet` to WebAssembly so that the standard
