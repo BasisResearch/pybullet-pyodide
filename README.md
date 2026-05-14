@@ -9,6 +9,15 @@ analytical IK, and `getCameraImage` via the CPU-only TinyRenderer. No GUI
 (`p.connect(p.GUI)` will not work — use `p.connect(p.DIRECT)` and feed
 `getCameraImage` output to Three.js or a canvas).
 
+
+## Deviation from upstream pybullet
+We choose to build the library with Emscripten's cmake wrapper with
+scikit-build instead of reusing the upstream's `setup.py`. Based on
+our past experience, cmake with release flag toggled generates faster
+and smaller executables. In the case of pybullet, the resulting
+executable is reduced from a few megabytes to less than 1 megabyte.
+
+
 ## Layout
 
 ```
@@ -47,13 +56,16 @@ plugs build subcommands into it. Install both:
 uv tool install pyodide-cli --with pyodide-build --with pip
 pyodide xbuildenv install 0.29.4
 
+# skippable if you already have a local Emscripten installation
 source "$(pyodide config get emsdk_dir)/emsdk_env.sh"
+
 pyodide build-recipes-no-deps pybullet --recipe-dir packages
 ```
 
-Output: `packages/pybullet/dist/pybullet-3.2.7-cp313-cp313-pyemscripten_2025_0_wasm32.whl`,
-about 650 KB. The Python and ABI tags follow whatever the installed
-xbuildenv targets (0.29.4 = CPython 3.13, `pyemscripten_2025_0_wasm32`).
+Output:
+`packages/pybullet/dist/pybullet-3.2.7-cp313-cp313-pyemscripten_2025_0_wasm32.whl`. The
+Python and ABI tags follow whatever the installed xbuildenv targets
+(0.29.4 = CPython 3.13, `pyemscripten_2025_0_wasm32`).
 
 Use `build-recipes-no-deps`, not `build-recipes`. The plain `build-recipes`
 command walks `requirements.host` / `requirements.run` and tries to build
