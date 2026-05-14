@@ -6,40 +6,32 @@ on:
     tags: ['v*']
   pull_request:
 
-env:
-  PYODIDE_RUNTIME_VERSION: "0.29.4"
-  PYODIDE_BUILD_VERSION: ">=0.34,<0.35"
-
 jobs:
   build_wheel:
-    name: Build pybullet wheel for Pyodide
+    name: Build (py${{ matrix.python }}, pyodide ${{ matrix.pyodide-runtime }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.13"
+            pyodide-build: "0.34.3"
+            pyodide-runtime: "0.29.4"
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      # cibuildwheel's pyodide platform only handles pyproject.toml-driven
-      # PEP 517 builds; it doesn't understand meta.yaml / source.extras /
-      # source.patches, which is the layer doing all the work here. Drive
-      # pyodide-build directly instead — same flow as a local build.
       - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
 
       - name: Install pyodide toolchain
-        run: uv tool install pyodide-cli --with 'pyodide-build${{ env.PYODIDE_BUILD_VERSION }}' --with pip
-
-      # The xbuildenv pulls ~300 MB of Emscripten binaries. Cache it
-      # keyed on the runtime version so re-runs and PRs reuse it.
-      - name: Cache pyodide xbuildenv
-        id: xbuildenv-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/.pyodide-xbuildenv-*/
-          key: xbuildenv-${{ runner.os }}-${{ env.PYODIDE_RUNTIME_VERSION }}
+        run: uv tool install pyodide-cli --with 'pyodide-build==${{ matrix.pyodide-build }}' --with pip
 
       - name: Install xbuildenv
-        if: steps.xbuildenv-cache.outputs.cache-hit != 'true'
-        run: pyodide xbuildenv install ${{ env.PYODIDE_RUNTIME_VERSION }}
+        run: pyodide xbuildenv install ${{ matrix.pyodide-runtime }}
 
       - name: Build recipe
         run: |
@@ -48,14 +40,20 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pybullet-wheel
+          name: pybullet-wheel-py${{ matrix.python }}-pyodide${{ matrix.pyodide-runtime }}
           path: packages/pybullet/dist/*.whl
           if-no-files-found: error
 
   smoke_test:
-    name: Load wheel in Pyodide and run a sim
+    name: Smoke test (pyodide ${{ matrix.pyodide-runtime }})
     needs: build_wheel
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.13"
+            pyodide-runtime: "0.29.4"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,7 +65,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: pybullet-wheel
+          name: pybullet-wheel-py${{ matrix.python }}-pyodide${{ matrix.pyodide-runtime }}
           path: packages/pybullet/dist
 
       - name: Run smoke test
@@ -86,8 +84,9 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: pybullet-wheel
+          pattern: pybullet-wheel-*
           path: dist
+          merge-multiple: true
 
       - uses: softprops/action-gh-release@v2
         with:
