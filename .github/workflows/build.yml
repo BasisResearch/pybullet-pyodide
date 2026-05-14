@@ -28,10 +28,12 @@ jobs:
           enable-cache: true
 
       - name: Install pyodide toolchain
-        run: uv tool install pyodide-cli --with 'pyodide-build==${{ matrix.pyodide-build }}' --with pip
+        run: uv tool install pyodide-cli --with 'pyodide-build==${{ matrix.pyodide-build }}'
 
       - name: Install xbuildenv
-        run: pyodide xbuildenv install ${{ matrix.pyodide-runtime }}
+        run: |
+          pyodide xbuildenv install ${{ matrix.pyodide-runtime }}
+          pyodide xbuildenv install-emscripten
 
       - name: Build recipe
         run: |
