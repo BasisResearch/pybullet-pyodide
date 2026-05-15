@@ -50,15 +50,27 @@ upstream only defined in the stripped GUI code).
 The `pyodide` CLI lives in the `pyodide-cli` package; `pyodide-build`
 plugs build subcommands into it. Install both:
 
+The three version pins below — host Python, `pyodide-build`, and the
+Pyodide runtime they target — must agree. See
+[`.github/workflows/build.yml`](.github/workflows/build.yml) (under
+`jobs.build_wheel.strategy.matrix`) for the combination CI is currently
+exercising; substitute the same values here.
+
 ```bash
 # pip is needed because pyodide-build shells out to it to install
 # cross-build packages into the xbuildenv venv.
-uv tool install pyodide-cli --with pyodide-build --with pip
-pyodide xbuildenv install 0.29.4
+uv tool install --python <PYTHON> pyodide-cli \
+    --with 'pyodide-build==<PYODIDE_BUILD>' --with pip
 
-# skippable if you already have a local Emscripten installation
+# `install` fetches the Pyodide sysroot; `install-emscripten` clones and
+# patches the matching Emscripten SDK. Both are needed — don't BYO emcc:
+# Pyodide pins a specific Emscripten version and applies side-module
+# patches that aren't upstream (without them you'll see "bad export
+# type" loader errors at wheel-import time).
+pyodide xbuildenv install <PYODIDE_RUNTIME>
+pyodide xbuildenv install-emscripten
+
 source "$(pyodide config get emsdk_dir)/emsdk_env.sh"
-
 pyodide build-recipes-no-deps pybullet --recipe-dir packages
 ```
 
@@ -86,9 +98,10 @@ npm install
 node smoke.mjs
 ```
 
-Loads the wheel from `../packages/pybullet/dist/`, stages the URDF + mesh
-fixtures from `test/fixtures/` into Pyodide's in-memory FS, drops a cube
-under gravity, and verifies it lands near `z = 0`. Expected output:
+Loads the wheel from [`packages/pybullet/dist/`](packages/pybullet/dist/),
+stages the URDF + mesh fixtures from [`test/fixtures/`](test/fixtures/)
+into Pyodide's in-memory FS, drops a cube under gravity, and verifies
+it lands near `z = 0`. Expected output:
 
 ```
 pybullet build time: <date>
@@ -206,14 +219,18 @@ curation, not any C++ or Python code.
 
 To bump the upstream version:
 
-1. Update `version:` and `sha256:` in `packages/pybullet/meta.yaml`.
+1. Update `version:` and `sha256:` in
+   [`packages/pybullet/meta.yaml`](packages/pybullet/meta.yaml).
 2. Re-run `pyodide build-recipes-no-deps`.
 3. If the build fails:
    - Missing source file → upstream renamed or moved one of the paths
-     in `extras/CMakeLists.txt`; find the new location and update it.
+     in [`packages/pybullet/extras/CMakeLists.txt`](packages/pybullet/extras/CMakeLists.txt);
+     find the new location and update it.
    - Undefined symbol at link → upstream added a new translation unit
-     our binding depends on; add its path to `extras/CMakeLists.txt`.
-   - Header pulls in an OpenGL symbol → add a patch under `patches/`
+     our binding depends on; add its path to the same
+     [`CMakeLists.txt`](packages/pybullet/extras/CMakeLists.txt).
+   - Header pulls in an OpenGL symbol → add a patch under
+     [`packages/pybullet/patches/`](packages/pybullet/patches/)
      that swaps the offending `#include` for a narrower one.
    - `bad export type for ...: undefined` at runtime → upstream split
      a definition into a TU we don't compile; patch the using TU to
